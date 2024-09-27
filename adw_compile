@@ -1,0 +1,2 @@
+gcc -Wall -pthread adw_constructor.c read_file.c cyclic_RT_test.c -o cyclic_RT_test -lm -lpigpio -lrt
+
