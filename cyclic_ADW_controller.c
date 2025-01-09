@@ -30,12 +30,40 @@ struct sockaddr_in serv_addr;
 static int g_gpio1 = GPIO;
 static int g_gpio2 = GPIO_TRIGGER;
 
+int *sock;
 int TIME;
 int ready_err;
 struct period_info {
         struct timespec next_period;
         long period_ns;
 };
+
+int wait_for_ready_signal() {
+    time_t start_time = time(NULL);
+    int value = 0;
+
+    //printf("Waiting for value to become 1...\n");
+
+    while (1) {
+        value = gpioRead(g_gpio2); // Retrieve the current ready signal state
+
+        if (value == 1) {
+            printf("Value is now 1. Proceeding.\n");
+            return 0;
+        }
+
+        // Check if 5 seconds have elapsed
+        if (difftime(time(NULL), start_time) >= 5) {
+            printf("Timeout reached. Ready Singal did not go active within 5 seconds. Reset SMW Agile Sequencer before running the program again\n");
+	    close(sock[GUI_socket_idx]);
+            exit(1);
+        }
+    }
+
+    return 0;
+}
+
+
  
 static void inc_period(struct period_info *pinfo) 
 {
@@ -63,7 +91,8 @@ static void do_rt_task(int* sock, char* adw, int ignore_adw_flag)
 	send(sock[0], adw, 32, 0);
 	if(ignore_adw_flag == 0){
 		ready_err = 1;
-		while(gpioRead(g_gpio2)==0){}
+		//while(gpioRead(g_gpio2)==0){}
+		wait_for_ready_signal();
 		gpioWrite(g_gpio1,1);
 		gpioWrite(g_gpio1,0);
 		ready_err = 0;
@@ -157,7 +186,7 @@ int main(int argc, char* argv[])
         pthread_attr_t attr,attr2;
         pthread_t thread, thread2;
         int ret;
-    	int *sock = malloc(sizeof(int)*(2)); 
+    	sock = malloc(sizeof(int)*(2)); 
 	int client_fd;
 	
 	/* INITIATE UDP SOCKET*/
